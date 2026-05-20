@@ -229,6 +229,9 @@ class ReadBufferEstimateBw:
         else:
             self.current_set_id -= 1    # If there are no elems in this set, dont consider it
 
+        if self.current_set_id < 0:
+            return
+
         if not self.active_buffer_prefetch_done:
             self.prefetch_bandwidth = self.default_bandwidth
             self.last_prefetch_end_cycle = -1 - self.backing_buffer.get_latency()
@@ -276,6 +279,9 @@ class ReadBufferEstimateBw:
         self.num_access += len(all_addresses)
 
         cycles_needed = self.last_prefetch_end_cycle - self.last_prefetch_start_cycle + 1
+        if cycles_needed <= 0 or len(all_addresses) == 0:
+            return
+
         max_prefetch_capacity = cycles_needed * self.prefetch_bandwidth
 
         delta = max_prefetch_capacity - len(all_addresses)
@@ -347,7 +353,7 @@ class ReadBufferEstimateBw:
         """
         Method to get number of accesses of the read estimate buffer if trace_valid flag is set.
         """
-        assert self.trace_valid, 'Traces not ready yet'
+        assert self.trace_valid or self.num_access == 0, 'Traces not ready yet'
         return self.num_access
 
     #
@@ -355,7 +361,11 @@ class ReadBufferEstimateBw:
         """
         Method to get start and stop cycles of the read estimate buffer if trace_valid flag is set.
         """
-        assert self.trace_valid, 'Traces not ready yet'
+        assert self.trace_valid or self.num_access == 0, 'Traces not ready yet'
+
+        if self.num_access == 0 or self.trace_matrix.shape[0] == 0:
+            return 0, 0
+
         start_cycle = self.trace_matrix[0][0]
         end_cycle = self.trace_matrix[-1][0]
 
